@@ -13,7 +13,7 @@ GeluidKrasser {
 	var midiSources, midiSourcesUids, midiPortUid, midiPortIndex;
 	var midiDefNoteOn, midiDefNoteOff, midiDefCc;
 	var configFile;
-	var fontSize;
+	var fontSize, fontSizeNormal;
 
 	*new {
 		arg id = 0, server, win, bufferLength, showMidi;
@@ -67,6 +67,7 @@ GeluidKrasser {
 		volBus = Bus.control(server,1).set(0.5);
 		fileBufferView = SoundFile.new();
 		fontSize = 10;
+		fontSizeNormal = 12;
 
 		bufferViewFolder = Archive.archiveDir ++ "/bufferViewTemp/";
 		bufferViewSoundFile = bufferViewFolder++"sampleRec"++id++".wav";
@@ -258,10 +259,10 @@ GeluidKrasser {
 			lenBus.get {arg val; { bufferView.setSelectionSize(0, val * sRate) }.defer };
 		}.defer(1);
 
-		instanceNumber = StaticText(view, Rect(width - 40, 20, 20, 20))
-			.font_(Font(font, 20)).stringColor_(Color.new255(220, 220, 220)).string_(id);
+		instanceNumber = StaticText(view, Rect(15, height - 35, 150, 30))
+			.font_(Font(font, fontSizeNormal)).string_("GeluidKrasser" + id);
 
-		recButton = (SmoothButton(view, Rect(width - 450,height - 140,100,100))
+		recButton = (SmoothButton(view, Rect(width - 450,height - 160,100,100))
 			.border_(1).radius_(50).canFocus_(false).font_(Font(font,30))
 			.states_([ [ "Rec", Color.black, Color.grey(0.9) ], [ "Rec", Color.black, Color.red(1,1) ] ])
 			.action_({ |b|
@@ -269,7 +270,7 @@ GeluidKrasser {
 			})
 		);
 
-		playButton = (SmoothButton(view, Rect(width - 310,height - 140,100,100))
+		playButton = (SmoothButton(view, Rect(width - 310,height - 160,100,100))
 			.border_(1).radius_(50).canFocus_(false).font_(Font(font,30))
 			.states_([ [ "Play", Color.black, Color.grey(0.9) ], [ "Play", Color.black, Color.green(1,1) ] ])
 			.action_({ |b|
@@ -277,8 +278,8 @@ GeluidKrasser {
 			})
 		);
 
-		volumeLabel = StaticText(view, Rect(width - 97, height - 50, 200, 60))
-			.font_(Font(font, 16))
+		volumeLabel = StaticText(view, Rect(width - 91, height - 50, 200, 60))
+			.font_(Font(font, fontSizeNormal))
 			.string_("Volume");
 
 		volumeSlider = SmoothSlider(view, Rect(width - 100, height - 190, 60, 150))
@@ -305,13 +306,19 @@ GeluidKrasser {
 		var midiNotePlayPopup, midiNoteRecPopup, midiCcVolPopup, midiCcStartPopup, midiCcLenPopup;
 		var midiPortPopupLabel, midiPortPopup, midiNoteTogglePopupLabel, midiNoteTogglePopup;
 		var audioOutChannels;
+		var audioLabel, midiLabel;
+		var midiLeft = 30;
+		var audioLeft = 350;
 
 		settingsView = View(view, Rect(10, height - 220, width - 20, 210)).background_(Color.new255(220, 231, 242));
 		settingsView.visible_(false);
 
-		midiPortPopupLabel = StaticText(settingsView, Rect(20, 20, 110, 15))
+		midiLabel = StaticText(settingsView, Rect(midiLeft, 20, 110, 15))
+			.font_(Font(font ++ "Bold", fontSizeNormal)).string_("MIDI settings");
+
+		midiPortPopupLabel = StaticText(settingsView, Rect(midiLeft, 45, 110, 15))
 			.font_(Font(font, fontSize)).string_("MIDI In Port");
-		midiPortPopup = (PopUpMenu(settingsView, Rect(130, 20, 200, 15))
+		midiPortPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 45, 180, 15))
 			.canFocus_(true).items_(midiSources.asArray).background_(Color.grey(0.9)).font_(font)
 			.action_({ |p|
 				midiPortIndex = p.value;
@@ -327,9 +334,9 @@ GeluidKrasser {
 			.font_(Font(font, fontSize))
 		);
 
-		midiChannelPopupLabel = StaticText(settingsView, Rect(20, 35, 110, 15))
+		midiChannelPopupLabel = StaticText(settingsView, Rect(midiLeft, 60, 110, 15))
 			.font_(Font(font, fontSize)).string_("MIDI In Channel");
-		midiChannelPopup = (PopUpMenu(settingsView, Rect(130, 35, 70, 15))
+		midiChannelPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 60, 70, 15))
 			.canFocus_(true).items_((1..16)).background_(Color.grey(0.9)).font_(font)
 			.action_({ |p|
 				midiChannel = p.value;
@@ -345,9 +352,116 @@ GeluidKrasser {
 			.font_(Font(font, fontSize))
 		);
 
-		audioInChannelPopupLabel = StaticText(settingsView, Rect(20, 50, 110, 15))
+		midiNotePlayPopupLabel = StaticText(settingsView, Rect(midiLeft, 75, 110, 15))
+			.font_(Font(font, fontSize)).string_("Play MIDI note");
+		midiNotePlayPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 75, 70, 15))
+			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
+			.action_({ |p|
+				midiNotePlay = p.value + 1;
+				playButton.valueAction_(0);
+				this.log("set Play MIDI note to" + midiNotePlay, true);
+				this.freeMidi();
+				this.initMidi();
+				this.checkNoteConflict();
+				this.writeConfig();
+			})
+			.keyDownAction_(false)
+			.value_(midiNotePlay - 1)
+			.font_(Font(font, fontSize))
+		);
+
+		midiNoteRecPopupLabel = StaticText(settingsView, Rect(midiLeft, 90, 110, 15))
+			.font_(Font(font, fontSize)).string_("Rec MIDI note");
+		midiNoteRecPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 90, 70, 15))
+			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
+			.action_({ |p|
+				midiNoteRec = p.value + 1;
+				recButton.valueAction_(0);
+				this.log("set Rec MIDI note to" + midiNoteRec, true);
+				this.freeMidi();
+				this.initMidi();
+				this.checkNoteConflict();
+				this.writeConfig();
+			})
+			.keyDownAction_(false)
+			.value_(midiNoteRec - 1)
+			.font_(Font(font, fontSize))
+		);
+
+		midiCcVolPopupLabel = StaticText(settingsView, Rect(midiLeft, 105, 110, 15))
+			.font_(Font(font, fontSize)).string_("Volume MIDI CC");
+		midiCcVolPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 105, 70, 15))
+			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
+			.action_({ |p|
+				midiCcVol = p.value + 1;
+				this.log("set Volume MIDI CC to" + midiCcVol, true);
+				this.freeMidi();
+				this.initMidi();
+				this.checkCcConflict();
+				this.writeConfig();
+			})
+			.keyDownAction_(false)
+			.value_(midiCcVol - 1)
+			.font_(Font(font, fontSize))
+		);
+
+		midiCcStartPopupLabel = StaticText(settingsView, Rect(midiLeft, 120, 110, 15))
+			.font_(Font(font, fontSize)).string_("StartPos MIDI CC");
+		midiCcStartPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 120, 70, 15))
+			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
+			.action_({ |p|
+				midiCcStart = p.value + 1;
+				this.log("set StartPos MIDI CC to" + midiCcStart, true);
+				this.freeMidi();
+				this.initMidi();
+				this.checkCcConflict();
+				this.writeConfig();
+			})
+			.keyDownAction_(false)
+			.value_(midiCcStart - 1)
+			.font_(Font(font, fontSize))
+		);
+
+		midiCcLenPopupLabel = StaticText(settingsView, Rect(midiLeft, 135, 110, 15))
+			.font_(Font(font, fontSize)).string_("Length MIDI CC");
+		midiCcLenPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 135, 70, 15))
+			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
+			.action_({ |p|
+				midiCcLen = p.value + 1;
+				this.log("set Length MIDI CC to" + midiCcLen, true);
+				this.freeMidi();
+				this.initMidi();
+				this.checkCcConflict();
+				this.writeConfig();
+			})
+			.keyDownAction_(false)
+			.value_(midiCcLen - 1)
+			.font_(Font(font, fontSize))
+		);
+
+		midiNoteTogglePopupLabel = StaticText(settingsView, Rect(midiLeft, 150, 110, 15))
+			.font_(Font(font, fontSize)).string_("MIDI note toggle");
+		midiNoteTogglePopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 150, 70, 15))
+			.canFocus_(true).items_(["ON","OFF"]).background_(Color.grey(0.9)).font_(font)
+			.action_({ |p|
+				midiNoteToggle = if (p.value == 0) { true } { false };
+				this.log("set MIDI note toggle" + (if (midiNoteToggle) { "ON" } { "OFF" }), true);
+				this.freeMidi();
+				this.initMidi();
+				this.writeConfig();
+			})
+			.keyDownAction_(false)
+			.value_(if (midiNoteToggle) { 0 } { 1 })
+			.font_(Font(font, fontSize))
+		);
+		midiNoteTogglePopup.value = if (midiNoteToggle) { 0 } { 1 };
+
+		audioLabel = StaticText(settingsView, Rect(audioLeft, 20, 110, 15))
+			.font_(Font(font ++ "Bold", fontSizeNormal)).string_("Audio settings");
+
+		audioInChannelPopupLabel = StaticText(settingsView, Rect(audioLeft, 45, 110, 15))
 			.font_(Font(font, fontSize)).string_("Audio In Channel");
-		audioInChannelPopup = (PopUpMenu(settingsView, Rect(130, 50, 70, 15))
+		audioInChannelPopup = (PopUpMenu(settingsView, Rect(audioLeft + 110, 45, 70, 15))
 			.canFocus_(true).items_((1..numAudioInChannels)).background_(Color.grey(0.9)).font_(font)
 			.action_({ |p|
 				audioIn = p.value;
@@ -367,9 +481,9 @@ GeluidKrasser {
 			var chanL = 2 * i + 1, chanR = chanL + 1;
 			chanL.asInteger + "+" + chanR.asInteger
 		});
-		audioOutChannelPopupLabel = StaticText(settingsView, Rect(20, 65, 110, 15))
+		audioOutChannelPopupLabel = StaticText(settingsView, Rect(audioLeft, 60, 110, 15))
 			.font_(Font(font, fontSize)).string_("Audio Out Channels");
-		audioOutChannelPopup = (PopUpMenu(settingsView, Rect(130, 65, 70, 15))
+		audioOutChannelPopup = (PopUpMenu(settingsView, Rect(audioLeft + 110, 60, 70, 15))
 			.canFocus_(true).items_(audioOutChannels).background_(Color.grey(0.9)).font_(font)
 			.action_({ |p|
 				audioOut = p.value * 2;
@@ -383,110 +497,6 @@ GeluidKrasser {
 			.value_(audioOut)
 			.font_(Font(font, fontSize))
 		);
-
-		midiNotePlayPopupLabel = StaticText(settingsView, Rect(20, 80, 110, 15))
-			.font_(Font(font, fontSize)).string_("Play MIDI note");
-		midiNotePlayPopup = (PopUpMenu(settingsView, Rect(130, 80, 70, 15))
-			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
-			.action_({ |p|
-				midiNotePlay = p.value + 1;
-				playButton.valueAction_(0);
-				this.log("set Play MIDI note to" + midiNotePlay, true);
-				this.freeMidi();
-				this.initMidi();
-				this.checkNoteConflict();
-				this.writeConfig();
-			})
-			.keyDownAction_(false)
-			.value_(midiNotePlay - 1)
-			.font_(Font(font, fontSize))
-		);
-
-		midiNoteRecPopupLabel = StaticText(settingsView, Rect(20, 95, 110, 15))
-			.font_(Font(font, fontSize)).string_("Rec MIDI note");
-		midiNoteRecPopup = (PopUpMenu(settingsView, Rect(130, 95, 70, 15))
-			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
-			.action_({ |p|
-				midiNoteRec = p.value + 1;
-				recButton.valueAction_(0);
-				this.log("set Rec MIDI note to" + midiNoteRec, true);
-				this.freeMidi();
-				this.initMidi();
-				this.checkNoteConflict();
-				this.writeConfig();
-			})
-			.keyDownAction_(false)
-			.value_(midiNoteRec - 1)
-			.font_(Font(font, fontSize))
-		);
-
-		midiCcVolPopupLabel = StaticText(settingsView, Rect(20, 110, 110, 15))
-			.font_(Font(font, fontSize)).string_("Volume MIDI CC");
-		midiCcVolPopup = (PopUpMenu(settingsView, Rect(130, 110, 70, 15))
-			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
-			.action_({ |p|
-				midiCcVol = p.value + 1;
-				this.log("set Volume MIDI CC to" + midiCcVol, true);
-				this.freeMidi();
-				this.initMidi();
-				this.checkCcConflict();
-				this.writeConfig();
-			})
-			.keyDownAction_(false)
-			.value_(midiCcVol - 1)
-			.font_(Font(font, fontSize))
-		);
-
-		midiCcStartPopupLabel = StaticText(settingsView, Rect(20, 125, 110, 15))
-			.font_(Font(font, fontSize)).string_("StartPos MIDI CC");
-		midiCcStartPopup = (PopUpMenu(settingsView, Rect(130, 125, 70, 15))
-			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
-			.action_({ |p|
-				midiCcStart = p.value + 1;
-				this.log("set StartPos MIDI CC to" + midiCcStart, true);
-				this.freeMidi();
-				this.initMidi();
-				this.checkCcConflict();
-				this.writeConfig();
-			})
-			.keyDownAction_(false)
-			.value_(midiCcStart - 1)
-			.font_(Font(font, fontSize))
-		);
-
-		midiCcLenPopupLabel = StaticText(settingsView, Rect(20, 140, 110, 15))
-			.font_(Font(font, fontSize)).string_("Length MIDI CC");
-		midiCcLenPopup = (PopUpMenu(settingsView, Rect(130, 140, 70, 15))
-			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
-			.action_({ |p|
-				midiCcLen = p.value + 1;
-				this.log("set Length MIDI CC to" + midiCcLen, true);
-				this.freeMidi();
-				this.initMidi();
-				this.checkCcConflict();
-				this.writeConfig();
-			})
-			.keyDownAction_(false)
-			.value_(midiCcLen - 1)
-			.font_(Font(font, fontSize))
-		);
-
-		midiNoteTogglePopupLabel = StaticText(settingsView, Rect(20, 155, 110, 15))
-			.font_(Font(font, fontSize)).string_("MIDI note toggle");
-		midiNoteTogglePopup = (PopUpMenu(settingsView, Rect(130, 155, 70, 15))
-			.canFocus_(true).items_(["ON","OFF"]).background_(Color.grey(0.9)).font_(font)
-			.action_({ |p|
-				midiNoteToggle = if (p.value == 0) { true } { false };
-				this.log("set MIDI note toggle" + (if (midiNoteToggle) { "ON" } { "OFF" }), true);
-				this.freeMidi();
-				this.initMidi();
-				this.writeConfig();
-			})
-			.keyDownAction_(false)
-			.value_(if (midiNoteToggle) { 0 } { 1 })
-			.font_(Font(font, fontSize))
-		);
-		midiNoteTogglePopup.value = if (midiNoteToggle) { 0 } { 1 };
 
 		settingsButton = (SmoothButton(view, Rect(5,height - 222,30,30))
 			.border_(0).radius_(15).canFocus_(false).font_(Font(font,13))
