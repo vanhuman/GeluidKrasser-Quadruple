@@ -15,7 +15,7 @@ instances.do { arg id;
 		s,
 		wGeluidKrasser,
 		bufferLengths[id],
-		true, // showMidi
+		false, // showMidi
 	);
 };
 
