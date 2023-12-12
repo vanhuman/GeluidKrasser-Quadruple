@@ -2,15 +2,15 @@ GeluidKrasser {
 	var id, server, win, bufferLength, showMidi;
 
 	var sRate, buffer, audioIn, audioOut, midiChannel, midiNotePlay, midiNoteRec, midiCcVol, midiCcStart, midiCcLen,
-	midiNoteToggle, midiCcPan, midiCcPitch;
+	midiNoteToggle, midiCcPan, midiCcSpeed;
 
 	var bufferViewBaseDelay;
-	var volBus, lenBus, startPos, startPosPrev, panBus, pitchBus;
-	var playButton, recButton, bufferView, volumeSlider, panSlider, pitchSlider;
+	var volBus, lenBus, startPos, startPosPrev, panBus, speedBus;
+	var playButton, recButton, bufferView, volumeSlider, panSlider, speedSlider;
 	var numAudioInChannels, numAudioOutChannels;
 	var playSynth, recSynth, spec, recZone, playZone;
 	var midiNotePlayPopupLabel, midiNoteRecPopupLabel, midiCcVolPopupLabel, midiCcStartPopupLabel, midiCcLenPopupLabel,
-	midiCcPanPopupLabel, midiCcPanPopupLabel, midiCcPitchPopupLabel;
+	midiCcPanPopupLabel, midiCcPanPopupLabel, midiCcSpeedPopupLabel;
 	var fileBufferView, bufferViewSoundFile;
 	var midiSources, midiSourcesUids, midiPortUid, midiPortIndex;
 	var midiDefNoteOn, midiDefNoteOff, midiDefCc;
@@ -53,7 +53,7 @@ GeluidKrasser {
 		midiCcStart = config[7];
 		midiCcLen = config[8];
 		midiCcPan = config[9];
-		midiCcPitch = config[10];
+		midiCcSpeed = config[10];
 		midiNoteToggle = config[11];
 
 		bufferViewBaseDelay = 0.07; // in seconds
@@ -69,11 +69,11 @@ GeluidKrasser {
 		spec[\start] = Env.new([0.01, 1 * bufferLength], [1], \lin);
 		spec[\len] = Env.new([0.01, 0.5 * bufferLength], [1], \exp);
 		spec[\pan] = Env.new([-1, 1], [1], \lin);
-		spec[\pitch] = Env.new([0.5, 1, 2], [0.5, 0.5], \lin);
+		spec[\speed] = Env.new([0.2, 1, 4], [0.5, 0.5], \exp);
 		lenBus = Bus.control(server,1).set(0.1 * bufferLength);
 		volBus = Bus.control(server,1).set(0.5);
 		panBus = Bus.control(server,1).set(0.5);
-		pitchBus = Bus.control(server,1).set(spec.pitch.at(0.5));
+		speedBus = Bus.control(server,1).set(spec.speed.at(0.5));
 		fileBufferView = SoundFile.new();
 		fontSize = 10;
 		fontSizeNormal = 12;
@@ -96,17 +96,17 @@ GeluidKrasser {
 		}).add;
 
 		SynthDef(\play ++ id, {
-			arg gate = 1, buf, lenBus, start = 0, volBus, panBus,pitchBus;
-			var sig, env, trig, lenVal, volVal, playhead, panVal, pitchVal;
+			arg gate = 1, buf, lenBus, start = 0, volBus, panBus,speedBus;
+			var sig, env, trig, lenVal, volVal, playhead, panVal, speedVal;
 			lenVal = In.kr(lenBus,1);
 			volVal = In.kr(volBus,1);
 			panVal = In.kr(panBus,1);
-			pitchVal = In.kr(pitchBus,1);
-			trig = Impulse.kr(pitchVal / lenVal);
-			playhead = (Phasor.ar(trig, pitchVal, start * sRate, (start + lenVal) * sRate, start * sRate)) % BufFrames.kr(buffer);
+			speedVal = In.kr(speedBus,1);
+			trig = Impulse.kr(speedVal / lenVal);
+			playhead = (Phasor.ar(trig, speedVal, start * sRate, (start + lenVal) * sRate, start * sRate)) % BufFrames.kr(buffer);
 			SendReply.kr(Impulse.kr(20), "/playhead" ++ id, playhead, playZone);
 			env = EnvGen.kr(Env.adsr(0.01,0,1,0.01), gate, doneAction: 2);
-			sig = PlayBufCF.ar(2, buf, pitchVal, trig, start * sRate, 1);
+			sig = PlayBufCF.ar(2, buf, speedVal, trig, start * sRate, 1);
 			sig = Balance2.ar(sig[0], sig[1], panVal);
 			sig = sig * env * volVal;
 			Out.ar(audioOut, sig);
@@ -184,8 +184,8 @@ GeluidKrasser {
 			if (num == midiCcPan) {
 				panSlider.valueAction_(val/127);
 			};
-			if (num == midiCcPitch) {
-				pitchSlider.valueAction_(val/127);
+			if (num == midiCcSpeed) {
+				speedSlider.valueAction_(val/127);
 			};
 		}, srcID: midiPortUid, chan: midiChannel).fix;
 		midiDefNoteOn = MIDIdef.noteOn(\NoteOn ++ id, {
@@ -228,7 +228,7 @@ GeluidKrasser {
 		var width = screenWidth / 2 - (2*border), height = screenHeight / 2 - (2*border) - 20;
 		var left = (id%2) * width + ((id%2+1)*border);
 		var top = if(id > 1, {height + (2 * border)}, {border});
-		var volumeLabel, instanceNumber, panLabel, pitchLabel;
+		var volumeLabel, instanceNumber, panLabel, speedLabel;
 
 		this.log("build GUI");
 
@@ -313,10 +313,10 @@ GeluidKrasser {
 				panBus.set(spec.pan.at(panSlider.value));
 			});
 
-		pitchLabel = StaticText(view, Rect(width - 165, height - 50, 200, 60))
+		speedLabel = StaticText(view, Rect(width - 165, height - 50, 200, 60))
 			.font_(Font(font, fontSizeNormal))
-			.string_("Pitch");
-		pitchSlider = SmoothSlider(view, Rect(width - 169, height - 190, 40, 150))
+			.string_("Speed");
+		speedSlider = SmoothSlider(view, Rect(width - 169, height - 190, 40, 150))
 			.hilightColor_(Color.grey(1,0.4))
 			.background_(Color.green.alpha_(0))
 			.border_(1)
@@ -325,7 +325,7 @@ GeluidKrasser {
 			.value_(0.5)
 			.canFocus_(false)
 			.action_({
-				pitchBus.set(spec.pitch.at(pitchSlider.value));
+				speedBus.set(spec.speed.at(speedSlider.value));
 			});
 
 		this.buildGuiSettings(view, width, height);
@@ -337,7 +337,7 @@ GeluidKrasser {
 		var settingsView, settingsButton;
 		var midiChannelPopupLabel, midiChannelPopup;
 		var audioOutChannelPopupLabel, audioOutChannelPopup, audioInChannelPopupLabel, audioInChannelPopup;
-		var midiNotePlayPopup, midiNoteRecPopup, midiCcVolPopup, midiCcStartPopup, midiCcLenPopup, midiCcPanPopup, midiCcPitchPopup;
+		var midiNotePlayPopup, midiNoteRecPopup, midiCcVolPopup, midiCcStartPopup, midiCcLenPopup, midiCcPanPopup, midiCcSpeedPopup;
 		var midiPortPopupLabel, midiPortPopup, midiNoteTogglePopupLabel, midiNoteTogglePopup;
 		var audioOutChannels;
 		var audioLabel, midiLabel;
@@ -490,20 +490,20 @@ GeluidKrasser {
 			.font_(Font(font, fontSize))
 		);
 
-		midiCcPitchPopupLabel = StaticText(settingsView, Rect(midiLeft, 160, 110, 15))
-			.font_(Font(font, fontSize)).string_("Pitch MIDI CC");
-		midiCcPitchPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 160, 70, 15))
+		midiCcSpeedPopupLabel = StaticText(settingsView, Rect(midiLeft, 160, 110, 15))
+			.font_(Font(font, fontSize)).string_("Speed MIDI CC");
+		midiCcSpeedPopup = (PopUpMenu(settingsView, Rect(midiLeft + 110, 160, 70, 15))
 			.canFocus_(true).items_((1..127)).background_(Color.grey(0.9)).font_(font)
 			.action_({ |p|
-				midiCcPitch = p.value + 1;
-				this.log("set Pitch MIDI CC to" + midiCcPitch, true);
+				midiCcSpeed = p.value + 1;
+				this.log("set Speed MIDI CC to" + midiCcSpeed, true);
 				this.freeMidi();
 				this.initMidi();
 				this.checkCcConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
-			.value_(midiCcPitch - 1)
+			.value_(midiCcSpeed - 1)
 			.font_(Font(font, fontSize))
 		);
 
@@ -580,7 +580,7 @@ GeluidKrasser {
 		if (play && playSynth.isNil, {
 			playSynth = Synth(\play ++ id, [
 				\buf, buffer, \volBus, volBus.index, \lenBus, lenBus.index,
-				\start, startPos, \panBus, panBus.index, \pitchBus, pitchBus.index
+				\start, startPos, \panBus, panBus.index, \speedBus, speedBus.index
 			]);
 		}, {
 			playSynth.release(0.01);
@@ -696,7 +696,7 @@ GeluidKrasser {
 		allConfig[id][7] = midiCcStart;
 		allConfig[id][8] = midiCcLen;
 		allConfig[id][9] = midiCcPan;
-		allConfig[id][10] = midiCcPitch;
+		allConfig[id][10] = midiCcSpeed;
 		allConfig[id][11] = midiNoteToggle;
 
 		file = File(configFile,"w");
