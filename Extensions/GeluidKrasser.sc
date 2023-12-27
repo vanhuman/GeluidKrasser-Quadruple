@@ -396,7 +396,6 @@ GeluidKrasser {
 				this.log("set Play MIDI note to" + midiNotePlay, true);
 				this.freeMidi();
 				this.initMidi();
-				this.checkNoteConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
@@ -414,7 +413,6 @@ GeluidKrasser {
 				this.log("set Rec MIDI note to" + midiNoteRec, true);
 				this.freeMidi();
 				this.initMidi();
-				this.checkNoteConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
@@ -431,7 +429,6 @@ GeluidKrasser {
 				this.log("set Volume MIDI CC to" + midiCcVol, true);
 				this.freeMidi();
 				this.initMidi();
-				this.checkCcConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
@@ -448,7 +445,6 @@ GeluidKrasser {
 				this.log("set StartPos MIDI CC to" + midiCcStart, true);
 				this.freeMidi();
 				this.initMidi();
-				this.checkCcConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
@@ -465,7 +461,6 @@ GeluidKrasser {
 				this.log("set Length MIDI CC to" + midiCcLen, true);
 				this.freeMidi();
 				this.initMidi();
-				this.checkCcConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
@@ -482,7 +477,6 @@ GeluidKrasser {
 				this.log("set Pan MIDI CC to" + midiCcPan, true);
 				this.freeMidi();
 				this.initMidi();
-				this.checkCcConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
@@ -499,7 +493,6 @@ GeluidKrasser {
 				this.log("set Speed MIDI CC to" + midiCcSpeed, true);
 				this.freeMidi();
 				this.initMidi();
-				this.checkCcConflict();
 				this.writeConfig();
 			})
 			.keyDownAction_(false)
@@ -642,44 +635,6 @@ GeluidKrasser {
 	log {
 		arg msg, newline = false;
 		((if (newline) {"\n"} {""}) ++ "GeluidKrasser" ++ id ++ ": " ++ msg).postln;
-	}
-
-	checkNoteConflict {
-		if (midiNotePlay == midiNoteRec) {
-			midiNotePlayPopupLabel.stringColor_(Color.red);
-			midiNoteRecPopupLabel.stringColor_(Color.red);
-		} {
-			midiNotePlayPopupLabel.stringColor_(Color.black);
-			midiNoteRecPopupLabel.stringColor_(Color.black);
-		};
-	}
-
-	checkCcConflict {
-		midiCcVolPopupLabel.stringColor_(Color.black);
-		midiCcStartPopupLabel.stringColor_(Color.black);
-		midiCcLenPopupLabel.stringColor_(Color.black);
-
-		case
-		{ midiCcVol == midiCcStart }
-		{
-			midiCcVolPopupLabel.stringColor_(Color.red);
-			midiCcStartPopupLabel.stringColor_(Color.red);
-		}
-		{ midiCcVol == midiCcLen }
-		{
-			midiCcVolPopupLabel.stringColor_(Color.red);
-			midiCcLenPopupLabel.stringColor_(Color.red);
-		}
-		{ midiCcStart == midiCcLen }
-		{
-			midiCcLenPopupLabel.stringColor_(Color.red);
-			midiCcStartPopupLabel.stringColor_(Color.red);
-		};
-		if (midiCcStart == midiCcLen && midiCcLen == midiCcVol) {
-			midiCcLenPopupLabel.stringColor_(Color.red);
-			midiCcStartPopupLabel.stringColor_(Color.red);
-			midiCcVolPopupLabel.stringColor_(Color.red);
-		};
 	}
 
 	writeConfig {
