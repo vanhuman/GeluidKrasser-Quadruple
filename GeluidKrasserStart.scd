@@ -3,7 +3,7 @@
 var bufferLengths = [20, 20, 20, 20]; // length of the 4 buffers, in seconds
 var showMidiInput = false;
 
-// Any changes to the code below is on your own risk
+// Any changes to the code below is at your own risk
 var screenWidth = Window.screenBounds.width, screenHeight = Window.screenBounds.height;
 var wDummy = Window().front.close; // to prevent main window to start hidden behind sclang
 var version = "1.0.0";
