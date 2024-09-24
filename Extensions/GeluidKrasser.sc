@@ -1,8 +1,9 @@
 GeluidKrasser {
-	var id, server, win, bufferLength, showMidi, sampleFolderPath;
+	var id, server, win, bufferLength, showMidi, sampleFolderPath,
+		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording;
 
 	var sRate, buffer, audioIn, audioOut, midiChannel, midiNotePlay, midiNoteRec, midiCcVol, midiCcStart, midiCcLen,
-	midiNoteToggle, midiCcPan, midiCcSpeed, midiNoteLoadFrom, midiNoteLoadTo;
+		midiNoteToggle, midiCcPan, midiCcSpeed, midiNoteLoadFrom, midiNoteLoadTo;
 
 	var bufferViewBaseDelay;
 	var volBus, lenBus, startPos, startPosPrev, panBus, speedBus;
@@ -14,10 +15,15 @@ GeluidKrasser {
 	var midiDefNoteOn, midiDefNoteOff, midiDefCc;
 	var configFile;
 	var fontSize, fontSizeNormal;
+	var bufferFactor = 1, recStartTime;
 
 	*new {
-		arg id = 0, server, win, bufferLength, showMidi, sampleFolderPath;
-		^super.newCopyArgs(id, server, win, bufferLength, showMidi, sampleFolderPath).initGeluidKrasser;
+		arg id = 0, server, win, bufferLength, showMidi, sampleFolderPath,
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording;
+		^super.newCopyArgs(
+			id, server, win, bufferLength, showMidi, sampleFolderPath,
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording
+		).initGeluidKrasser;
 	}
 
 	initGeluidKrasser {
@@ -77,7 +83,7 @@ GeluidKrasser {
 		numAudioInChannels = Server.local.options.numInputBusChannels;
 		numAudioOutChannels = Server.local.options.numOutputBusChannels;
 		spec[\start] = Env.new([0.01, 1 * bufferLength], [1], \lin);
-		spec[\len] = Env.new([0.01, 0.5 * bufferLength], [1], \exp);
+		spec[\len] = Env.new([0.01, 1 * bufferLength], [1], \exp);
 		spec[\pan] = Env.new([-1, 1], [1], \lin);
 		spec[\speed] = Env.new([0.2, 1, 4], [0.5, 0.5], \exp);
 		lenBus = Bus.control(server,1).set(0.1 * bufferLength);
@@ -113,7 +119,9 @@ GeluidKrasser {
 			panVal = In.kr(panBus,1);
 			speedVal = In.kr(speedBus,1);
 			trig = Impulse.kr(speedVal / lenVal);
-			playhead = (Phasor.ar(trig, speedVal, start * sRate, (start + lenVal) * sRate, start * sRate)) % BufFrames.kr(buffer);
+			playhead = (
+				Phasor.ar(trig, speedVal, start * sRate, (start + lenVal) * sRate, start * sRate)
+				) % BufFrames.kr(buffer);
 			SendReply.kr(Impulse.kr(20), "/playhead" ++ id, playhead, playZone);
 			env = EnvGen.kr(Env.adsr(0.01,0,1,0.01), gate, doneAction: 2);
 			sig = PlayBufCF.ar(2, buf, speedVal, trig, start * sRate, 1);
@@ -626,10 +634,17 @@ GeluidKrasser {
 	toggleRecSynth  {
 		arg rec;
 		if (rec && recSynth.isNil, {
+			if (clearBufferBeforeRecording, {
+				this.clearBuffer();
+			});
+			recStartTime = SystemClock.seconds;
 			recSynth = Synth(\rec ++ id, [\gate, 1, \buf, buffer]);
 		}, {
 			recSynth.release(0.01);
 			recSynth = nil;
+			if (resizeBufferAfterRecZone, {
+				this.resizeBuffer((SystemClock.seconds - recStartTime) / bufferLength);
+			});
 			this.refreshBufferView();
 		});
 	}
@@ -723,11 +738,27 @@ GeluidKrasser {
 					buffer.readChannel(sampleFilePath, channels: [0,m]);
 					tempFile.close;
 					this.refreshBufferView();
+					if (resetBufferAfterSampleLoading, {
+						this.resizeBuffer(1);
+					});
 				},
 				{
 					this.log("Soundfile" + sampleFilePath + "not found.");
 				}
 			);
 		});
+	}
+
+	resizeBuffer {
+		arg factor;
+		bufferFactor = factor;
+		this.log("Buffer size set to" + (bufferFactor * bufferLength) + "seconden");
+		spec[\start] = Env.new([0.01, 1 * bufferLength * bufferFactor], [1], \lin);
+		spec[\len] = Env.new([0.01, 1 * bufferLength * bufferFactor], [1], \exp);
+		lenBus.set(1 * bufferLength * bufferFactor);
+		lenBus.get({ arg busVal; { bufferView.setSelectionSize(0, busVal * sRate) }.defer });
+		startPos = 0;
+		{ bufferView.setSelectionStart(0, startPos * sRate) }.defer;
+		this.restartPlaySynth();
 	}
 }

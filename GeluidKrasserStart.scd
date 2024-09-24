@@ -9,6 +9,9 @@ var sampleFolderPaths = [
 	"/Users/Robert/Desktop/gk_samples/*",
 	"/Users/Robert/Desktop/gk_samples/*",
 ];
+var resizeBufferAfterRecZone = true;
+var resetBufferAfterSampleLoading = true;
+var clearBufferBeforeRecording = false;
 
 // Any changes to the code below is at your own risk
 var screenWidth = Window.screenBounds.width, screenHeight = Window.screenBounds.height;
@@ -28,6 +31,9 @@ instances.do { arg id;
 		bufferLengths[id],
 		showMidiInput,
 		sampleFolderPaths[id],
+		resizeBufferAfterRecZone,
+		resetBufferAfterSampleLoading,
+		clearBufferBeforeRecording,
 	);
 };
 
@@ -47,3 +53,4 @@ wGeluidKrasser.onClose = {
 };
 wGeluidKrasser.front();
 )
+
