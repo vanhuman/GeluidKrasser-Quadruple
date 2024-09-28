@@ -12,7 +12,7 @@ GeluidKrasser is a quadruple live sampler. Four buffers to record live audio to 
 3. In the application folder there are two folders: Support_files and Extensions. Move all the files and folders from the Support_files folder to ~/Library/Application Support/SuperCollider ( ~ indicates your user home folder). Your ~/Library folder might be hidden; you get there in the Finder by clicking on the Go menu and then press the Alt key; an extra menu item 'Library' should be added to the list. If this SuperCollider folder does not exist, create it. If one of the files or folders already exist and you did not make any changes to them that you want to keep, you can override them.
 4. Move the file GeluidKrasser.sc from Extensions into ~/Library/Application Support/SuperCollider/Extensions/.
 5. Now you can delete the Support_files and Extensions folders from the appication folder.
-5. Start SuperCollider.
+6. Start SuperCollider.
 
 ## Configuration
 1. Open ~/Library/Application Support/SuperCollider/startup.scd in the SuperCollider editor. You can do this easily from the File menu in Supercollider with 'Open startup file'.
