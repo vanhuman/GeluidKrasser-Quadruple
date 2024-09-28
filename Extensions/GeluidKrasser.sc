@@ -1,6 +1,6 @@
 GeluidKrasser {
 	var id, server, win, bufferLength, showMidi, sampleFolderPath,
-		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording;
+		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, selectedColor;
 
 	var sRate, buffer, audioIn, audioOut, midiChannel, midiNotePlay, midiNoteRec, midiCcVol, midiCcStart, midiCcLen,
 		midiNoteToggle, midiCcPan, midiCcSpeed, midiNoteLoadFrom, midiNoteLoadTo;
@@ -19,10 +19,10 @@ GeluidKrasser {
 
 	*new {
 		arg id = 0, server, win, bufferLength, showMidi, sampleFolderPath,
-			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording;
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, selectedColor;
 		^super.newCopyArgs(
 			id, server, win, bufferLength, showMidi, sampleFolderPath,
-			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, selectedColor
 		).initGeluidKrasser;
 	}
 
@@ -253,7 +253,7 @@ GeluidKrasser {
 
 		this.log("build GUI");
 
-		view = View(win, Rect(left, top, width, height)).background_(Color.new255(192, 192, 192));
+		view = View(win, Rect(left, top, width, height)).background_(selectedColor[\backgroundWindow]);
 
 		bufferView = (SoundFileView.new(view, Rect(10, 10, width - 20, height - 220 - 20))
 			.gridOn_(false)
@@ -275,10 +275,10 @@ GeluidKrasser {
 				var start = value.selections[0][0];
 				var len = value.selections[0][1];
 				if (len == 0) {
-					len = bufferLength * sRate / 10;
+					len = bufferLength * bufferFactor * sRate / 10;
 					bufferView.setSelectionSize(0, len);
 				};
-				startPos = spec.start.at(start/(bufferLength * sRate));
+				startPos = spec.start.at(start/(bufferLength * bufferFactor * sRate));
 				this.restartPlaySynth();
 				lenBus.set(len/sRate);
 			});
@@ -286,7 +286,7 @@ GeluidKrasser {
 		}.defer(1);
 
 		instanceNumber = StaticText(view, Rect(15, height - 35, 150, 30))
-			.font_(Font(font, fontSizeNormal)).string_("GeluidKrasser" + id);
+			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels]).string_("GeluidKrasser" + id);
 
 		recButton = (SmoothButton(view, Rect(width - 450,height - 160,100,100))
 			.border_(1).radius_(50).canFocus_(false).font_(Font(font,30))
@@ -305,7 +305,7 @@ GeluidKrasser {
 		);
 
 		volumeLabel = StaticText(view, Rect(width - 60, height - 50, 200, 60))
-			.font_(Font(font, fontSizeNormal))
+			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels])
 			.string_("Vol");
 		volumeSlider = SmoothSlider(view, Rect(width - 69, height - 190, 40, 150))
 			.hilightColor_(Color.grey(1,0.4))
@@ -320,7 +320,7 @@ GeluidKrasser {
 			});
 
 		panLabel = StaticText(view, Rect(width - 110, height - 50, 200, 60))
-			.font_(Font(font, fontSizeNormal))
+			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels])
 			.string_("Pan");
 		panSlider = SmoothSlider(view, Rect(width - 119, height - 190, 40, 150))
 			.hilightColor_(Color.grey(1,0.4))
@@ -335,7 +335,7 @@ GeluidKrasser {
 			});
 
 		speedLabel = StaticText(view, Rect(width - 165, height - 50, 200, 60))
-			.font_(Font(font, fontSizeNormal))
+			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels])
 			.string_("Speed");
 		speedSlider = SmoothSlider(view, Rect(width - 169, height - 190, 40, 150))
 			.hilightColor_(Color.grey(1,0.4))
@@ -739,7 +739,7 @@ GeluidKrasser {
 					tempFile.close;
 					this.refreshBufferView();
 					if (resetBufferAfterSampleLoading, {
-						this.resizeBuffer(1);
+						this.resizeBuffer(1, false);
 					});
 				},
 				{
@@ -750,15 +750,26 @@ GeluidKrasser {
 	}
 
 	resizeBuffer {
-		arg factor;
+		arg factor, zoomIn = true;
 		bufferFactor = factor;
 		this.log("Buffer size set to" + (bufferFactor * bufferLength) + "seconden");
 		spec[\start] = Env.new([0.01, 1 * bufferLength * bufferFactor], [1], \lin);
 		spec[\len] = Env.new([0.01, 1 * bufferLength * bufferFactor], [1], \exp);
-		lenBus.set(1 * bufferLength * bufferFactor);
-		lenBus.get({ arg busVal; { bufferView.setSelectionSize(0, busVal * sRate) }.defer });
-		startPos = 0;
-		{ bufferView.setSelectionStart(0, startPos * sRate) }.defer;
+		if (zoomIn, {
+			// reset controllers to new buffer length
+			lenBus.set(1 * bufferLength * bufferFactor);
+			startPos = 0;
+			{ // zoom in to new buffer length
+				bufferView.setSelectionStart(0, startPos * sRate);
+				bufferView.setSelectionSize(0, 1 * bufferLength * bufferFactor * sRate);
+				{
+					bufferView.zoomSelection(0);
+					bufferView.setSelectionSize(0, 1 * bufferLength * bufferFactor * sRate);
+				}.defer(0.1);
+			}.defer;
+		}, {
+			{ bufferView.zoomAllOut; }.defer;
+		});
 		this.restartPlaySynth();
 	}
 }
