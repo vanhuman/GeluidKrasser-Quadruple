@@ -12,16 +12,16 @@ var sampleFolderPaths = [
 var resizeBufferAfterRecZone = true;
 var resetBufferAfterSampleLoading = true;
 var clearBufferBeforeRecording = false;
-var color = \Dark;  // one of \Grey, \Dark, \Pink
+var skin = \Dark;  // one of \Grey, \Dark, \Pink
 
 // Any changes to the code below is at your own risk
 var screenWidth = Window.screenBounds.width, screenHeight = Window.screenBounds.height;
 var wDummy = Window().front.close; // to prevent main window to start hidden behind sclang
-var version = "2.0";
+var version = "2";
 var wGeluidKrasser = Window("GeluidKrasser v" ++ version, Rect(0,0,screenWidth,screenHeight)).background_(Color.grey(0.8,0.2));
 var geluidKrasser = Array.newClear(4);
 var instances = [0,1,2,3];
-var colors = (
+var skins = (
 	Grey: (
 		backgroundWindow: Color.new255(192, 192, 192),
 		labels: Color.black,
@@ -49,7 +49,7 @@ instances.do { arg id;
 		resizeBufferAfterRecZone,
 		resetBufferAfterSampleLoading,
 		clearBufferBeforeRecording,
-		colors[color],
+		skins[skin],
 	);
 };
 

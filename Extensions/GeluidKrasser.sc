@@ -1,6 +1,6 @@
 GeluidKrasser {
 	var id, server, win, bufferLength, showMidi, sampleFolderPath,
-		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, selectedColor;
+		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin;
 
 	var sRate, buffer, audioIn, audioOut, midiChannel, midiNotePlay, midiNoteRec, midiCcVol, midiCcStart, midiCcLen,
 		midiNoteToggle, midiCcPan, midiCcSpeed, midiNoteLoadFrom, midiNoteLoadTo;
@@ -19,10 +19,10 @@ GeluidKrasser {
 
 	*new {
 		arg id = 0, server, win, bufferLength, showMidi, sampleFolderPath,
-			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, selectedColor;
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin;
 		^super.newCopyArgs(
 			id, server, win, bufferLength, showMidi, sampleFolderPath,
-			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, selectedColor
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin
 		).initGeluidKrasser;
 	}
 
@@ -253,7 +253,7 @@ GeluidKrasser {
 
 		this.log("build GUI");
 
-		view = View(win, Rect(left, top, width, height)).background_(selectedColor[\backgroundWindow]);
+		view = View(win, Rect(left, top, width, height)).background_(skin[\backgroundWindow]);
 
 		bufferView = (SoundFileView.new(view, Rect(10, 10, width - 20, height - 220 - 20))
 			.gridOn_(false)
@@ -286,7 +286,7 @@ GeluidKrasser {
 		}.defer(1);
 
 		instanceNumber = StaticText(view, Rect(15, height - 35, 150, 30))
-			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels]).string_("GeluidKrasser" + id);
+			.font_(Font(font, fontSizeNormal)).stringColor_(skin[\labels]).string_("GeluidKrasser" + id);
 
 		recButton = (SmoothButton(view, Rect(width - 450,height - 160,100,100))
 			.border_(1).radius_(50).canFocus_(false).font_(Font(font,30))
@@ -305,7 +305,7 @@ GeluidKrasser {
 		);
 
 		volumeLabel = StaticText(view, Rect(width - 60, height - 50, 200, 60))
-			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels])
+			.font_(Font(font, fontSizeNormal)).stringColor_(skin[\labels])
 			.string_("Vol");
 		volumeSlider = SmoothSlider(view, Rect(width - 69, height - 190, 40, 150))
 			.hilightColor_(Color.grey(1,0.4))
@@ -320,7 +320,7 @@ GeluidKrasser {
 			});
 
 		panLabel = StaticText(view, Rect(width - 110, height - 50, 200, 60))
-			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels])
+			.font_(Font(font, fontSizeNormal)).stringColor_(skin[\labels])
 			.string_("Pan");
 		panSlider = SmoothSlider(view, Rect(width - 119, height - 190, 40, 150))
 			.hilightColor_(Color.grey(1,0.4))
@@ -335,7 +335,7 @@ GeluidKrasser {
 			});
 
 		speedLabel = StaticText(view, Rect(width - 165, height - 50, 200, 60))
-			.font_(Font(font, fontSizeNormal)).stringColor_(selectedColor[\labels])
+			.font_(Font(font, fontSizeNormal)).stringColor_(skin[\labels])
 			.string_("Speed");
 		speedSlider = SmoothSlider(view, Rect(width - 169, height - 190, 40, 150))
 			.hilightColor_(Color.grey(1,0.4))
