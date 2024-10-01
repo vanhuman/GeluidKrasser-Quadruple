@@ -1,6 +1,7 @@
 GeluidKrasser {
 	var id, server, win, bufferLength, showMidi, sampleFolderPath,
-		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin;
+		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin,
+		pitchShiftIncludesBackwards;
 
 	var sRate, buffer, audioIn, audioOut, midiChannel, midiNotePlay, midiNoteRec, midiCcVol, midiCcStart, midiCcLen,
 		midiNoteToggle, midiCcPan, midiCcSpeed, midiNoteLoadFrom, midiNoteLoadTo;
@@ -19,10 +20,12 @@ GeluidKrasser {
 
 	*new {
 		arg id = 0, server, win, bufferLength, showMidi, sampleFolderPath,
-			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin;
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin,
+			pitchShiftIncludesBackwards;
 		^super.newCopyArgs(
 			id, server, win, bufferLength, showMidi, sampleFolderPath,
-			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin
+			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin,
+			pitchShiftIncludesBackwards
 		).initGeluidKrasser;
 	}
 
@@ -85,7 +88,11 @@ GeluidKrasser {
 		spec[\start] = Env.new([0.01, 1 * bufferLength], [1], \lin);
 		spec[\len] = Env.new([0.01, 1 * bufferLength], [1], \exp);
 		spec[\pan] = Env.new([-1, 1], [1], \lin);
-		spec[\speed] = Env.new([0.2, 1, 4], [0.5, 0.5], \exp);
+		if (pitchShiftIncludesBackwards, {
+			spec[\speed] = Env.new([-1, -0.1, 0.1, 1, 4], [0.19, 0.01, 0.3, 0.5], [\exp, \step, \exp]);
+		}, {
+			spec[\speed] = Env.new([0.1, 1, 4], [0.5, 0.5], \exp);
+		});
 		lenBus = Bus.control(server,1).set(0.1 * bufferLength);
 		volBus = Bus.control(server,1).set(0.5);
 		panBus = Bus.control(server,1).set(0.5);
@@ -112,7 +119,7 @@ GeluidKrasser {
 		}).add;
 
 		SynthDef(\play ++ id, {
-			arg gate = 1, buf, lenBus, start = 0, volBus, panBus,speedBus;
+			arg gate = 1, buf, lenBus, start = 0, volBus, panBus,speedBus, playbuf = 1;
 			var sig, env, trig, lenVal, volVal, playhead, panVal, speedVal;
 			lenVal = In.kr(lenBus,1);
 			volVal = In.kr(volBus,1);
@@ -124,7 +131,8 @@ GeluidKrasser {
 				) % BufFrames.kr(buffer);
 			SendReply.kr(Impulse.kr(20), "/playhead" ++ id, playhead, playZone);
 			env = EnvGen.kr(Env.adsr(0.01,0,1,0.01), gate, doneAction: 2);
-			sig = PlayBufCF.ar(2, buf, speedVal, trig, start * sRate, 1);
+			sig = (playbuf * PlayBufCF.ar(2, buf, speedVal, trig, start * sRate, 1))
+				+ ((1 - playbuf) * BufRd.ar(2, buf, playhead, 1, 4));
 			sig = Balance2.ar(sig[0], sig[1], panVal);
 			sig = sig * env * volVal;
 			Out.ar(audioOut, sig);
@@ -623,7 +631,8 @@ GeluidKrasser {
 		if (play && playSynth.isNil, {
 			playSynth = Synth(\play ++ id, [
 				\buf, buffer, \volBus, volBus.index, \lenBus, lenBus.index,
-				\start, startPos, \panBus, panBus.index, \speedBus, speedBus.index
+				\start, startPos, \panBus, panBus.index, \speedBus, speedBus.index,
+				\playbuf, (if(pitchShiftIncludesBackwards, 0, 1))
 			]);
 		}, {
 			playSynth.release(0.01);

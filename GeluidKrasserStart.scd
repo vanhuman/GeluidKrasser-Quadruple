@@ -13,11 +13,12 @@ var resizeBufferAfterRecZone = true;
 var resetBufferAfterSampleLoading = true;
 var clearBufferBeforeRecording = false;
 var skin = \Dark;  // one of \Grey, \Dark, \Pink
+var pitchShiftIncludesBackwards = true; // when true, this comes with the cost of being a bit more clicky during looping
 
 // Any changes to the code below is at your own risk
 var screenWidth = Window.screenBounds.width, screenHeight = Window.screenBounds.height;
 var wDummy = Window().front.close; // to prevent main window to start hidden behind sclang
-var version = "2";
+var version = "3";
 var wGeluidKrasser = Window("GeluidKrasser v" ++ version, Rect(0,0,screenWidth,screenHeight)).background_(Color.grey(0.8,0.2));
 var geluidKrasser = Array.newClear(4);
 var instances = [0,1,2,3];
@@ -50,6 +51,7 @@ instances.do { arg id;
 		resetBufferAfterSampleLoading,
 		clearBufferBeforeRecording,
 		skins[skin],
+		pitchShiftIncludesBackwards,
 	);
 };
 
@@ -69,4 +71,3 @@ wGeluidKrasser.onClose = {
 };
 wGeluidKrasser.front();
 )
-
