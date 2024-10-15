@@ -1,7 +1,7 @@
 GeluidKrasser {
 	var id, server, win, bufferLength, showMidi, sampleFolderPath,
 		resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin,
-		pitchShiftIncludesBackwards;
+		pitchShiftIncludesBackwards, showBufferView, numberOfInstances;
 
 	var sRate, buffer, audioIn, audioOut, midiChannel, midiNotePlay, midiNoteRec, midiCcVol, midiCcStart, midiCcLen,
 		midiNoteToggle, midiCcPan, midiCcSpeed, midiNoteLoadFrom, midiNoteLoadTo;
@@ -21,11 +21,11 @@ GeluidKrasser {
 	*new {
 		arg id = 0, server, win, bufferLength, showMidi, sampleFolderPath,
 			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin,
-			pitchShiftIncludesBackwards;
+			pitchShiftIncludesBackwards, showBufferView, numberOfInstances;
 		^super.newCopyArgs(
 			id, server, win, bufferLength, showMidi, sampleFolderPath,
 			resizeBufferAfterRecZone, resetBufferAfterSampleLoading, clearBufferBeforeRecording, skin,
-			pitchShiftIncludesBackwards
+			pitchShiftIncludesBackwards, showBufferView, numberOfInstances
 		).initGeluidKrasser;
 	}
 
@@ -38,7 +38,7 @@ GeluidKrasser {
 	}
 
 	initVars {
-		var bufferViewFolder, config;
+		var bufferViewFolder;
 
 		this.log("initialize variables", true);
 		if (bufferLength.isNil) { bufferLength = 20 };
@@ -47,33 +47,7 @@ GeluidKrasser {
 		sRate = server.sampleRate;
 		buffer = Buffer.alloc(server, sRate * bufferLength, 2);
 
-		configFile = Archive.archiveDir ++ "/GeluidKrasserConfig.scd";
-		config = configFile.load[id];
-
-		midiPortUid = config[0];
-		midiChannel = config[1];
-		audioIn = config[2];
-		audioOut = config[3];
-		midiNotePlay = config[4];
-		midiNoteRec = config[5];
-		midiCcVol = config[6];
-		midiCcStart = config[7];
-		midiCcLen = config[8];
-		midiCcPan = config[9];
-		midiCcSpeed = config[10];
-		midiNoteToggle = config[11];
-		if (config.size > 12, {
-			midiNoteLoadFrom = config[12];
-		}, {
-			midiNoteLoadFrom = 90;
-			this.writeConfig();
-		});
-		if (config.size > 13, {
-			midiNoteLoadTo = config[13];
-		}, {
-			midiNoteLoadTo = 110;
-			this.writeConfig();
-		});
+		this.loadConfigFile();
 
 		bufferViewBaseDelay = 0.07; // in seconds
 		startPos = 0;
@@ -97,13 +71,63 @@ GeluidKrasser {
 		volBus = Bus.control(server,1).set(0.5);
 		panBus = Bus.control(server,1).set(0.5);
 		speedBus = Bus.control(server,1).set(spec.speed.at(0.5));
-		fileBufferView = SoundFile.new();
 		fontSize = 10;
 		fontSizeNormal = 12;
 
-		bufferViewFolder = Archive.archiveDir ++ "/bufferViewTemp/";
-		bufferViewSoundFile = bufferViewFolder++"sampleRec"++id++".wav";
-		buffer.write(bufferViewSoundFile,"WAV","int16", bufferLength * sRate, 0);
+		if (showBufferView, {
+			fileBufferView = SoundFile.new();
+			bufferViewFolder = Archive.archiveDir ++ "/bufferViewTemp/";
+			bufferViewSoundFile = bufferViewFolder++"sampleRec"++id++".wav";
+			buffer.write(bufferViewSoundFile,"WAV","int16", bufferLength * sRate, 0);
+		});
+	}
+
+	loadConfigFile {
+		var config;
+
+		configFile = Archive.archiveDir ++ "/GeluidKrasserConfig.scd";
+		if (configFile.load.size > id, {
+			config = configFile.load[id];
+			midiPortUid = config[0];
+			midiChannel = config[1];
+			audioIn = config[2];
+			audioOut = config[3];
+			midiNotePlay = config[4];
+			midiNoteRec = config[5];
+			midiCcVol = config[6];
+			midiCcStart = config[7];
+			midiCcLen = config[8];
+			midiCcPan = config[9];
+			midiCcSpeed = config[10];
+			midiNoteToggle = config[11];
+		}, {
+			config = [];
+			midiPortUid = nil;
+			midiChannel = id.asInteger;
+			audioIn = 0;
+			audioOut = 0;
+			midiNotePlay = 60;
+			midiNoteRec = 48;
+			midiCcVol = 1;
+			midiCcStart = 2;
+			midiCcLen = 3;
+			midiCcPan = 4;
+			midiCcSpeed = 5;
+			midiNoteToggle = true;
+			this.writeConfig();
+		});
+		if (config.size > 12, {
+			midiNoteLoadFrom = config[12];
+		}, {
+			midiNoteLoadFrom = 90;
+			this.writeConfig();
+		});
+		if (config.size > 13, {
+			midiNoteLoadTo = config[13];
+		}, {
+			midiNoteLoadTo = 110;
+			this.writeConfig();
+		});
 	}
 
 	addSynths {
@@ -113,7 +137,9 @@ GeluidKrasser {
 			arg gate, buf;
 			var playhead = (Phasor.ar(1,1, 0, bufferLength * sRate, 0)) % BufFrames.kr(buffer);
 			SendReply.kr(Impulse.kr(20), "/playhead" ++ id, playhead, recZone);
-			SendReply.kr(Impulse.kr(0.5),"/bufferViewRefresh" ++ id, playhead);
+			if (showBufferView, {
+				SendReply.kr(Impulse.kr(0.5),"/bufferViewRefresh" ++ id, playhead);
+			});
 			RecordBuf.ar(SoundIn.ar([audioIn,audioIn]), buf, 0, loop: 0)
 			* EnvGen.kr(Env.linen(0,bufferLength,0), gate, doneAction: 2);
 		}).add;
@@ -128,11 +154,13 @@ GeluidKrasser {
 			trig = Impulse.kr(speedVal / lenVal);
 			playhead = (
 				Phasor.ar(trig, speedVal, start * sRate, (start + lenVal) * sRate, start * sRate)
-				) % BufFrames.kr(buffer);
-			SendReply.kr(Impulse.kr(20), "/playhead" ++ id, playhead, playZone);
+			) % BufFrames.kr(buffer);
+			if (showBufferView, {
+				SendReply.kr(Impulse.kr(20), "/playhead" ++ id, playhead, playZone);
+			});
 			env = EnvGen.kr(Env.adsr(0.01,0,1,0.01), gate, doneAction: 2);
 			sig = (playbuf * PlayBufCF.ar(2, buf, speedVal, trig, start * sRate, 1))
-				+ ((1 - playbuf) * BufRd.ar(2, buf, playhead, 1, 4));
+			+ ((1 - playbuf) * BufRd.ar(2, buf, playhead, 1, 4));
 			sig = Balance2.ar(sig[0], sig[1], panVal);
 			sig = sig * env * volVal;
 			Out.ar(audioOut, sig);
@@ -142,24 +170,26 @@ GeluidKrasser {
 	initOsc {
 		this.log("initialize OSC");
 
-		OSCdef(\bufferViewRefresh ++ id, { |msg|
-			this.refreshBufferView();
-		},
-		'bufferViewRefresh' ++ id
-		).fix;
+		if (showBufferView, {
+			OSCdef(\bufferViewRefresh ++ id, { |msg|
+				this.refreshBufferView();
+			},
+			'bufferViewRefresh' ++ id
+			).fix;
 
-		OSCdef(\playhead ++ id, { |msg|
-			var playhead = msg[3];
-			var zone = msg[2];
-			if (zone == recZone) {
-				if (playhead > (bufferLength * sRate - 4000), {recButton.valueAction_(0)});
-			};
-			if (zone == playZone) {
-				{ bufferView.timeCursorPosition = playhead; }.defer(0);
-			};
-		},
-		'playhead' ++ id
-		).fix;
+			OSCdef(\playhead ++ id, { |msg|
+				var playhead = msg[3];
+				var zone = msg[2];
+				if (zone == recZone) {
+					if (playhead > (bufferLength * sRate - 4000), {recButton.valueAction_(0)});
+				};
+				if (zone == playZone) {
+					{ bufferView.timeCursorPosition = playhead; }.defer(0);
+				};
+			},
+			'playhead' ++ id
+			).fix;
+		});
 	}
 
 	initMidi {
@@ -198,14 +228,18 @@ GeluidKrasser {
 			if(num == midiCcStart) {
 				startPos = spec.start.at(val/127);
 				if(startPos != startPosPrev, {
-					{ bufferView.setSelectionStart(0, startPos * sRate) }.defer;
+					if (showBufferView, {
+						{ bufferView.setSelectionStart(0, startPos * sRate) }.defer;
+					});
 					this.restartPlaySynth();
 					startPosPrev = startPos;
 				});
 			};
 			if (num == midiCcLen) {
 				lenBus.set(spec.len.at(val/127));
-				lenBus.get({ arg busVal; { bufferView.setSelectionSize(0, busVal * sRate) }.defer });
+				if (showBufferView, {
+					lenBus.get({ arg busVal; { bufferView.setSelectionSize(0, busVal * sRate) }.defer });
+				});
 			};
 			if (num == midiCcPan) {
 				panSlider.valueAction_(val/127);
@@ -253,45 +287,52 @@ GeluidKrasser {
 
 	buildGui {
 		var screenWidth = Window.screenBounds.width, screenHeight = Window.screenBounds.height;
-		var border = 4, view, title, font = "Avenir", textGui = (), number;
-		var width = screenWidth / 2 - (2*border), height = screenHeight / 2 - (2*border) - 20;
+		var border = 4, view, title, font = "Avenir";
+		var width = screenWidth / 2 - (2*border);
+		var height = screenHeight / if(numberOfInstances < 5, 2, 3) - (2*border) - 20;
 		var left = (id%2) * width + ((id%2+1)*border);
-		var top = if(id > 1, {height + (2 * border)}, {border});
+		var top = if(id > 3,
+			2 * height + (3 * border),
+			if(id > 1, height + (2 * border), border)
+		);
 		var volumeLabel, instanceNumber, panLabel, speedLabel;
 
 		this.log("build GUI");
 
 		view = View(win, Rect(left, top, width, height)).background_(skin[\backgroundWindow]);
 
-		bufferView = (SoundFileView.new(view, Rect(10, 10, width - 20, height - 220 - 20))
-			.gridOn_(false)
-			.gridResolution_(10)
-			.gridColor_(Color.grey)
-			.timeCursorOn_(true)
-			.timeCursorColor_(Color.black)
-			.waveColors_([Color.black, Color.black])
-			.background_(Color.white)
-			.canFocus_(false)
-			.setSelectionColor(0, Color.grey(0.6))
-		);
-		{
-			fileBufferView.openRead(bufferViewSoundFile);
-			bufferView.soundfile = fileBufferView;
-			bufferView.read(0, bufferLength * sRate, 512).refresh;
-			bufferView.setSelectionStart(0, startPos * sRate);
-			bufferView.action_({ arg value;
-				var start = value.selections[0][0];
-				var len = value.selections[0][1];
-				if (len == 0) {
-					len = bufferLength * bufferFactor * sRate / 10;
-					bufferView.setSelectionSize(0, len);
-				};
-				startPos = spec.start.at(start/(bufferLength * bufferFactor * sRate));
-				this.restartPlaySynth();
-				lenBus.set(len/sRate);
-			});
-			lenBus.get {arg val; { bufferView.setSelectionSize(0, val * sRate) }.defer };
-		}.defer(1);
+		if (showBufferView, {
+			bufferView = (SoundFileView.new(view,
+				Rect(10, 10, width - if(numberOfInstances < 5, 0, 180) - 20, height - if(numberOfInstances < 5, 220, 0) - 20))
+				.gridOn_(false)
+				.gridResolution_(10)
+				.gridColor_(Color.grey)
+				.timeCursorOn_(true)
+				.timeCursorColor_(Color.black)
+				.waveColors_([Color.black, Color.black])
+				.background_(Color.white)
+				.canFocus_(false)
+				.setSelectionColor(0, Color.grey(0.6))
+			);
+			{
+				fileBufferView.openRead(bufferViewSoundFile);
+				bufferView.soundfile = fileBufferView;
+				bufferView.read(0, bufferLength * sRate, 512).refresh;
+				bufferView.setSelectionStart(0, startPos * sRate);
+				bufferView.action_({ arg value;
+					var start = value.selections[0][0];
+					var len = value.selections[0][1];
+					if (len == 0) {
+						len = bufferLength * bufferFactor * sRate / 10;
+						bufferView.setSelectionSize(0, len);
+					};
+					startPos = spec.start.at(start/(bufferLength * bufferFactor * sRate));
+					this.restartPlaySynth();
+					lenBus.set(len/sRate);
+				});
+				lenBus.get {arg val; { bufferView.setSelectionSize(0, val * sRate) }.defer };
+			}.defer(1);
+		});
 
 		instanceNumber = StaticText(view, Rect(15, height - 35, 150, 30))
 			.font_(Font(font, fontSizeNormal)).stringColor_(skin[\labels]).string_("GeluidKrasser" + id);
@@ -670,7 +711,9 @@ GeluidKrasser {
 		if (playSynth.notNil, {playSynth.release(0.01)});
 		if (recSynth.notNil, {recSynth.release(0.01)});
 		buffer.zero;
-		buffer.write(bufferViewSoundFile,"WAV","int16", bufferLength * sRate, 0);
+		if (showBufferView, {
+			buffer.write(bufferViewSoundFile,"WAV","int16", bufferLength * sRate, 0);
+		});
 		buffer.free; buffer = nil;
 		this.freeMidi();
 		OSCdef.freeAll;
@@ -678,12 +721,14 @@ GeluidKrasser {
 
 	refreshBufferView {
 		var delay = 0.1 * (bufferLength / 100) + bufferViewBaseDelay;
-		buffer.write(bufferViewSoundFile,"WAV","int16", bufferLength * sRate, 0);
-		{
-			fileBufferView.openRead(bufferViewSoundFile);
-			bufferView.soundfile = fileBufferView;
-			bufferView.read(0, bufferLength * sRate, 512).refresh;
-		}.defer(delay);
+		if (showBufferView, {
+			buffer.write(bufferViewSoundFile,"WAV","int16", bufferLength * sRate, 0);
+			{
+				fileBufferView.openRead(bufferViewSoundFile);
+				bufferView.soundfile = fileBufferView;
+				bufferView.read(0, bufferLength * sRate, 512).refresh;
+			}.defer(delay);
+		});
 	}
 
 	clearBuffer {
@@ -706,7 +751,10 @@ GeluidKrasser {
 	writeConfig {
 		var file, allConfig;
 
-		allConfig = configFile.load;
+		allConfig = List.newFrom(configFile.load);
+		if (allConfig.size <= id, {
+			allConfig.add([]);
+		});
 		allConfig[id] = [
 			midiPortUid,
 			midiChannel,
@@ -768,16 +816,20 @@ GeluidKrasser {
 			// reset controllers to new buffer length
 			lenBus.set(1 * bufferLength * bufferFactor);
 			startPos = 0;
-			{ // zoom in to new buffer length
-				bufferView.setSelectionStart(0, startPos * sRate);
-				bufferView.setSelectionSize(0, 1 * bufferLength * bufferFactor * sRate);
-				{
-					bufferView.zoomSelection(0);
+			if (showBufferView, {
+				{ // zoom in to new buffer length
+					bufferView.setSelectionStart(0, startPos * sRate);
 					bufferView.setSelectionSize(0, 1 * bufferLength * bufferFactor * sRate);
-				}.defer(0.1);
-			}.defer;
+					{
+						bufferView.zoomSelection(0);
+						bufferView.setSelectionSize(0, 1 * bufferLength * bufferFactor * sRate);
+					}.defer(0.1);
+				}.defer;
+			});
 		}, {
-			{ bufferView.zoomAllOut; }.defer;
+			if (showBufferView, {
+				{ bufferView.zoomAllOut; }.defer;
+			});
 		});
 		this.restartPlaySynth();
 	}
