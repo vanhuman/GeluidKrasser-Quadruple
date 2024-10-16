@@ -1,9 +1,17 @@
 # Introduction
-GeluidKrasser is a quadruple live sampler. Four buffers to record live audio to play back independently using MIDI. Controls include startposition, length and speed of the playback, volume and panning. Audio and MIDI settings can be configured per sampler by clicking on the tiny keyboard icon.
+GeluidKrasser is a live sampler with 1 to 6 independent sample players. Each player has a buffer to record live audio or to load sample files from disk. Sound in the buffer can be played back controlled by onscreen controls or using MIDI. Controls include startposition, length and speed of the playback, volume and panning. Audio and MIDI settings can be configured per sampler. A bufferview shows the recorded or loaded sample.
+
+### New in version 4
+* GeluidKrasser is extended from 4 to 6 players. Also the user can now configure any number of players between 1 and 6.
+* When more than 4 players are configured, the bufferview is automatically switched off to save space on the screen.
+* The bufferview can also be switched off independently.
+
+### New in version 3
+* The sample players can be configured to play backwards with lower values for the speed controller.
 
 ### New in version 2
 * Loading samples from specified folders on disk, triggered by MIDI notes as set in the settings.
-* Dynamic buffer lengths determined by the recording length; after stopping the recording the buffer will be set to the length of the recording, all controls will be limited to this new buffer length.
+* Dynamic buffer lengths determined by the recording length; after stopping the recording the buffer will be set to the length of the recording, all controls will be limited to this new buffer length. This feature can be switched off.
 * Simple skin functionality: Dark, Grey, Pink.
 
 # Installation
@@ -21,14 +29,7 @@ GeluidKrasser is a quadruple live sampler. Four buffers to record live audio to 
 4. SuperCollider can only use an audio interface that is set as default for input and output in the OS X Audio Midi Setup. Make sure that you set the correct audio interface there.
 5. To configure your audio interface in GeluidKrasser, quit SuperCollider, connect the interface and start it again. Open startup.scd again (from ~/Library/Application Support/SuperCollider/). In the postwindow (on your right, where all kinds of system messages appear), look for the line 'All available audio devices'. This should also list your audio interface. Copy its name and use it as device1 (which by default is 'MOTU UltraLite mk3 Hybrid'). You can add up to three audio devices. Now restart SuperCollider.
 6. MIDI and audio mapping can be done in the settings under the tiny keyboard icon after you've launched GeluidKrasser.
-7. Some settings can be adjusted at the top of the GeluidKrasserStart.scd file:
-* bufferlenghts (in seconds): set the length of the buffer for each sampler
-* showMidiInput (true or false): whether to show MIDI input messages in the post window
-* sampleFolderPaths: the path to the folders to load samples from, in alphabetical order; if the samples are too long for the buffer, only a part will be loaded; samples can be mono or stereo
-* resizeBufferAfterRecZone (true or false): to switch on or off resizing of the buffer triggered by the recording length
-* resetBufferAfterSampleLoading (true or false): whether the sample buffer should be reset to its original length after loading a sampe from disk
-* clearBufferBeforeRecording (true or false): whether to clear out the buffer before recording
-* skin (\Grey, \Dark or \Pink): setting one of three skins
+7. Some settings can be adjusted at the top of the GeluidKrasserStart.scd file. The settings are documented there.
 
 
 
